@@ -1,0 +1,57 @@
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: comparcar-postgres
+    environment:
+      POSTGRES_DB: comparcar
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./data:/var/lib/postgresql/data
+    networks:
+      - comparcar-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Spring Boot Backend
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: comparcar-backend
+    environment:
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      DB_HOST: postgres
+      DB_NAME: comparcar
+    ports:
+      - "8090:8090"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - comparcar-network
+    restart: unless-stopped
+
+  # React Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: comparcar-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - comparcar-network
+    restart: unless-stopped
+
+networks:
+  comparcar-network:
+    driver: bridge 
